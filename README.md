@@ -1,6 +1,9 @@
 # Fivetran MCP Server
 
-An MCP (Model Context Protocol) server for controlling Fivetran syncs. Enables AI assistants to manage data pipelines, trigger syncs, and monitor connection status.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for controlling [Fivetran](https://fivetran.com/) data pipelines. Enables AI assistants like Claude to manage syncs, monitor connection status, and control data pipelines through natural language.
 
 ## Features
 
@@ -121,4 +124,4 @@ uv run fivetran-mcp
 
 ## License
 
-MIT
+[MIT](LICENSE)
