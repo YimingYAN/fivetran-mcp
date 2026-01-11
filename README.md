@@ -16,6 +16,7 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for c
 - **Historical resync** - Trigger full data resync or resync specific tables
 - **Pause/Resume** - Control connection scheduling
 - **List groups** - View all destination groups
+- **Test connection** - Diagnose connectivity and configuration issues
 
 ## Quick Start
 
@@ -105,6 +106,7 @@ Restart Claude Code to load the new MCP server. You should now have access to Fi
 | `pause_connection` | Pause a connection |
 | `resume_connection` | Resume a paused connection |
 | `list_groups` | List all groups/destinations |
+| `test_connection` | Run diagnostic tests to identify connectivity/configuration issues |
 
 ## Environment Variables
 

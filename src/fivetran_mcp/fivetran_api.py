@@ -110,6 +110,20 @@ class FivetranClient:
             json={"schema": tables},
         )
 
+    async def test_connection(self, connection_id: str) -> dict[str, Any]:
+        """Test a connection to diagnose connectivity and configuration issues.
+
+        Args:
+            connection_id: The connection identifier
+
+        Returns:
+            Dictionary containing test results with overall status and individual test details
+        """
+        return await self._request(
+            "POST",
+            f"/v1/connections/{connection_id}/test",
+        )
+
     async def _request(
         self,
         method: str,
