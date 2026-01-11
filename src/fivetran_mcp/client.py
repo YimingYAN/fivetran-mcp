@@ -111,3 +111,18 @@ class FivetranClient:
         return await self._request(
             "GET", f"/v1/groups/{group_id}/connections", params=params
         )
+
+    async def resync_tables(
+        self, connection_id: str, tables: list[str]
+    ) -> dict[str, Any]:
+        """Trigger a historical resync for specific tables within a connection.
+
+        Args:
+            connection_id: The connection identifier
+            tables: List of table names in format "schema.table" (e.g., ["public.users"])
+        """
+        return await self._request(
+            "POST",
+            f"/v1/connections/{connection_id}/schemas/tables/resync",
+            json={"schema": tables},
+        )

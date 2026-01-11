@@ -16,11 +16,16 @@ def _get_client() -> FivetranClient:
     """Get or create the Fivetran API client."""
     global _client
     if _client is None:
-        api_key = os.environ.get("FIVETRAN_API_KEY")
-        api_secret = os.environ.get("FIVETRAN_API_SECRET")
+        # Support both naming conventions
+        api_key = os.environ.get("FIVETRAN_SYNC_API_KEY") or os.environ.get(
+            "FIVETRAN_API_KEY"
+        )
+        api_secret = os.environ.get("FIVETRAN_SYNC_API_SECRET") or os.environ.get(
+            "FIVETRAN_API_SECRET"
+        )
         if not api_key or not api_secret:
             raise ValueError(
-                "FIVETRAN_API_KEY and FIVETRAN_API_SECRET environment variables are required"
+                "FIVETRAN_SYNC_API_KEY and FIVETRAN_SYNC_API_SECRET (or FIVETRAN_API_KEY and FIVETRAN_API_SECRET) environment variables are required"
             )
         _client = FivetranClient(api_key, api_secret)
     return _client
@@ -144,6 +149,30 @@ async def trigger_resync(connection_id: str) -> dict[str, Any]:
         "success": True,
         "message": result.get("message", "Historical resync triggered successfully"),
         "connection_id": connection_id,
+    }
+
+
+@mcp.tool
+async def resync_tables(connection_id: str, tables: list[str]) -> dict[str, Any]:
+    """Trigger a historical resync for specific tables within a connection.
+
+    This re-syncs historical data only for the specified tables, not the entire
+    connection. Useful when you need to refresh specific tables without a full resync.
+
+    Args:
+        connection_id: The unique identifier of the connection
+        tables: List of table names to resync (e.g., ["schema.table_name", "public.users"])
+
+    Returns:
+        Dictionary with resync trigger confirmation
+    """
+    client = _get_client()
+    result = await client.resync_tables(connection_id, tables)
+    return {
+        "success": True,
+        "message": result.get("message", "Table resync triggered successfully"),
+        "connection_id": connection_id,
+        "tables": tables,
     }
 
 

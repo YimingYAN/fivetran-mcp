@@ -7,32 +7,42 @@ An MCP (Model Context Protocol) server for controlling Fivetran syncs. Enables A
 - **List connections** - View all Fivetran connections with status
 - **Check sync status** - Get detailed status for any connection
 - **Trigger syncs** - Start syncs on demand
-- **Historical resync** - Trigger full data resync
+- **Historical resync** - Trigger full data resync or resync specific tables
 - **Pause/Resume** - Control connection scheduling
 - **List groups** - View all destination groups
 
 ## Installation
 
 ```bash
-# Using uv
-uv add fivetran-mcp
-
-# Or install from source
-git clone <repo>
+# Install from source
+git clone https://github.com/YimingYAN/fivetran-mcp.git
 cd fivetran-mcp
 uv sync
 ```
 
 ## Configuration
 
-Set the following environment variables:
+### Getting API Credentials
+
+1. Go to Fivetran Dashboard → Click your username → **API Key**
+2. Click **Generate API key**
+3. Save both the API Key and API Secret securely
+
+See [Fivetran API Getting Started](https://fivetran.com/docs/rest-api/getting-started) for details.
+
+### Environment Variables
+
+Set the following environment variables (supports both naming conventions):
 
 ```bash
+# Preferred (matches eunice-data convention)
+export FIVETRAN_SYNC_API_KEY="your-api-key"
+export FIVETRAN_SYNC_API_SECRET="your-api-secret"
+
+# Alternative
 export FIVETRAN_API_KEY="your-api-key"
 export FIVETRAN_API_SECRET="your-api-secret"
 ```
-
-You can generate API credentials in the Fivetran dashboard under Settings > API Config.
 
 ## Usage with Claude Code
 
@@ -46,8 +56,8 @@ Add to your `~/.claude.json`:
       "command": "uv",
       "args": ["run", "--directory", "/path/to/fivetran-mcp", "fivetran-mcp"],
       "env": {
-        "FIVETRAN_API_KEY": "${FIVETRAN_API_KEY}",
-        "FIVETRAN_API_SECRET": "${FIVETRAN_API_SECRET}"
+        "FIVETRAN_SYNC_API_KEY": "${FIVETRAN_SYNC_API_KEY}",
+        "FIVETRAN_SYNC_API_SECRET": "${FIVETRAN_SYNC_API_SECRET}"
       }
     }
   }
@@ -61,7 +71,8 @@ Add to your `~/.claude.json`:
 | `list_connections` | List all connections, optionally filtered by group |
 | `get_connection_status` | Get detailed status for a connection |
 | `trigger_sync` | Start a sync for a connection |
-| `trigger_resync` | Trigger historical resync |
+| `trigger_resync` | Trigger full historical resync |
+| `resync_tables` | Resync specific tables only (e.g., `["schema.table_name"]`) |
 | `pause_connection` | Pause a connection |
 | `resume_connection` | Resume a paused connection |
 | `list_groups` | List all groups/destinations |
