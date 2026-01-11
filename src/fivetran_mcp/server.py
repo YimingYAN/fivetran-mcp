@@ -230,30 +230,23 @@ async def test_connection(connection_id: str) -> dict[str, Any]:
     result = await client.test_connection(connection_id)
     data = result.get("data", {})
 
-    tests = []
-    passed_count = 0
-    failed_count = 0
+    tests = [
+        {
+            "title": test.get("title"),
+            "status": test.get("status", "UNKNOWN"),
+            "message": test.get("message"),
+            "details": test.get("details"),
+        }
+        for test in data.get("setup_tests", [])
+    ]
 
-    for test in data.get("setup_tests", []):
-        test_status = test.get("status", "UNKNOWN")
-        tests.append(
-            {
-                "title": test.get("title"),
-                "status": test_status,
-                "message": test.get("message"),
-                "details": test.get("details"),
-            }
-        )
-        if test_status == "PASSED":
-            passed_count += 1
-        elif test_status == "FAILED":
-            failed_count += 1
-
-    overall_status = "PASSED" if failed_count == 0 and passed_count > 0 else "FAILED"
+    passed_count = sum(1 for t in tests if t["status"] == "PASSED")
+    failed_count = sum(1 for t in tests if t["status"] == "FAILED")
+    all_passed = failed_count == 0 and passed_count > 0
 
     return {
         "connection_id": connection_id,
-        "overall_status": overall_status,
+        "overall_status": "PASSED" if all_passed else "FAILED",
         "passed_count": passed_count,
         "failed_count": failed_count,
         "total_tests": len(tests),
