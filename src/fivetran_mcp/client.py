@@ -26,26 +26,13 @@ class FivetranClient:
         """Close the HTTP client."""
         await self._client.aclose()
 
-    async def _request(
-        self,
-        method: str,
-        path: str,
-        params: dict[str, Any] | None = None,
-        json: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Make an API request and return the JSON response."""
-        response = await self._client.request(method, path, params=params, json=json)
-        response.raise_for_status()
-        return response.json()
-
     async def list_connections(
         self, limit: int = 100, cursor: str | None = None
     ) -> dict[str, Any]:
         """List all connections in the account."""
-        params: dict[str, Any] = {"limit": limit}
-        if cursor:
-            params["cursor"] = cursor
-        return await self._request("GET", "/v1/connections", params=params)
+        return await self._request(
+            "GET", "/v1/connections", params=_pagination_params(limit, cursor)
+        )
 
     async def get_connection(self, connection_id: str) -> dict[str, Any]:
         """Get details for a specific connection."""
@@ -65,13 +52,11 @@ class FivetranClient:
         self, connection_id: str, scope: dict[str, list[str]] | None = None
     ) -> dict[str, Any]:
         """Trigger a historical resync for a connection."""
-        json_body: dict[str, Any] = {}
-        if scope:
-            json_body["scope"] = scope
+        json_body = {"scope": scope} if scope else None
         return await self._request(
             "POST",
             f"/v1/connections/{connection_id}/resync",
-            json=json_body if json_body else None,
+            json=json_body,
         )
 
     async def update_connection(
@@ -96,20 +81,18 @@ class FivetranClient:
         self, limit: int = 100, cursor: str | None = None
     ) -> dict[str, Any]:
         """List all groups in the account."""
-        params: dict[str, Any] = {"limit": limit}
-        if cursor:
-            params["cursor"] = cursor
-        return await self._request("GET", "/v1/groups", params=params)
+        return await self._request(
+            "GET", "/v1/groups", params=_pagination_params(limit, cursor)
+        )
 
     async def list_connections_in_group(
         self, group_id: str, limit: int = 100, cursor: str | None = None
     ) -> dict[str, Any]:
         """List connections within a specific group."""
-        params: dict[str, Any] = {"limit": limit}
-        if cursor:
-            params["cursor"] = cursor
         return await self._request(
-            "GET", f"/v1/groups/{group_id}/connections", params=params
+            "GET",
+            f"/v1/groups/{group_id}/connections",
+            params=_pagination_params(limit, cursor),
         )
 
     async def resync_tables(
@@ -126,3 +109,23 @@ class FivetranClient:
             f"/v1/connections/{connection_id}/schemas/tables/resync",
             json={"schema": tables},
         )
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make an API request and return the JSON response."""
+        response = await self._client.request(method, path, params=params, json=json)
+        response.raise_for_status()
+        return response.json()
+
+
+def _pagination_params(limit: int, cursor: str | None) -> dict[str, Any]:
+    """Build pagination parameters for API requests."""
+    params: dict[str, Any] = {"limit": limit}
+    if cursor:
+        params["cursor"] = cursor
+    return params

@@ -12,25 +12,6 @@ mcp = FastMCP(name="Fivetran MCP Server")
 _client: FivetranClient | None = None
 
 
-def _get_client() -> FivetranClient:
-    """Get or create the Fivetran API client."""
-    global _client
-    if _client is None:
-        # Support both naming conventions
-        api_key = os.environ.get("FIVETRAN_SYNC_API_KEY") or os.environ.get(
-            "FIVETRAN_API_KEY"
-        )
-        api_secret = os.environ.get("FIVETRAN_SYNC_API_SECRET") or os.environ.get(
-            "FIVETRAN_API_SECRET"
-        )
-        if not api_key or not api_secret:
-            raise ValueError(
-                "FIVETRAN_SYNC_API_KEY and FIVETRAN_SYNC_API_SECRET (or FIVETRAN_API_KEY and FIVETRAN_API_SECRET) environment variables are required"
-            )
-        _client = FivetranClient(api_key, api_secret)
-    return _client
-
-
 @mcp.tool
 async def list_connections(
     limit: int = 100, group_id: str | None = None
@@ -50,23 +31,10 @@ async def list_connections(
     else:
         result = await client.list_connections(limit=limit)
 
-    connections = []
-    for conn in result.get("data", {}).get("items", []):
-        status = conn.get("status", {})
-        connections.append(
-            {
-                "id": conn.get("id"),
-                "schema": conn.get("schema"),
-                "service": conn.get("service"),
-                "group_id": conn.get("group_id"),
-                "paused": conn.get("paused"),
-                "sync_state": status.get("sync_state"),
-                "setup_state": status.get("setup_state"),
-                "is_historical_sync": status.get("is_historical_sync"),
-                "succeeded_at": conn.get("succeeded_at"),
-                "failed_at": conn.get("failed_at"),
-            }
-        )
+    connections = [
+        _extract_connection_summary(conn)
+        for conn in result.get("data", {}).get("items", [])
+    ]
     return {"connections": connections, "count": len(connections)}
 
 
@@ -237,21 +205,52 @@ async def list_groups(limit: int = 100) -> dict[str, Any]:
     client = _get_client()
     result = await client.list_groups(limit=limit)
 
-    groups = []
-    for group in result.get("data", {}).get("items", []):
-        groups.append(
-            {
-                "id": group.get("id"),
-                "name": group.get("name"),
-                "created_at": group.get("created_at"),
-            }
-        )
+    groups = [
+        {"id": group.get("id"), "name": group.get("name"), "created_at": group.get("created_at")}
+        for group in result.get("data", {}).get("items", [])
+    ]
     return {"groups": groups, "count": len(groups)}
 
 
 def main() -> None:
     """Run the MCP server."""
     mcp.run()
+
+
+def _get_client() -> FivetranClient:
+    """Get or create the Fivetran API client."""
+    global _client
+    if _client is not None:
+        return _client
+
+    api_key = os.environ.get("FIVETRAN_SYNC_API_KEY") or os.environ.get("FIVETRAN_API_KEY")
+    api_secret = os.environ.get("FIVETRAN_SYNC_API_SECRET") or os.environ.get("FIVETRAN_API_SECRET")
+
+    if not api_key or not api_secret:
+        raise ValueError(
+            "FIVETRAN_SYNC_API_KEY and FIVETRAN_SYNC_API_SECRET "
+            "(or FIVETRAN_API_KEY and FIVETRAN_API_SECRET) environment variables are required"
+        )
+
+    _client = FivetranClient(api_key, api_secret)
+    return _client
+
+
+def _extract_connection_summary(conn: dict[str, Any]) -> dict[str, Any]:
+    """Extract a summary of connection data for list responses."""
+    status = conn.get("status", {})
+    return {
+        "id": conn.get("id"),
+        "schema": conn.get("schema"),
+        "service": conn.get("service"),
+        "group_id": conn.get("group_id"),
+        "paused": conn.get("paused"),
+        "sync_state": status.get("sync_state"),
+        "setup_state": status.get("setup_state"),
+        "is_historical_sync": status.get("is_historical_sync"),
+        "succeeded_at": conn.get("succeeded_at"),
+        "failed_at": conn.get("failed_at"),
+    }
 
 
 if __name__ == "__main__":
