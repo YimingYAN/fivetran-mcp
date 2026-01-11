@@ -2,6 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![Built by Claude Code](https://img.shields.io/badge/Built%20by-Claude%20Code-blueviolet)](https://claude.ai/code)
+
+> **Note:** This repository is built and maintained entirely by [Claude Code](https://claude.ai/code), Anthropic's AI coding assistant.
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for controlling [Fivetran](https://fivetran.com/) data pipelines. Enables AI assistants like Claude to manage syncs, monitor connection status, and control data pipelines through natural language.
 
