@@ -127,8 +127,8 @@ class FivetranClient:
             json={"schema": tables},
         )
 
-    async def run_connection_tests(self, connection_id: str) -> dict[str, Any]:
-        """Run setup tests for a connection to diagnose connectivity and configuration issues.
+    async def test_connection(self, connection_id: str) -> dict[str, Any]:
+        """Test a connection to diagnose connectivity and configuration issues.
 
         Args:
             connection_id: The connection identifier

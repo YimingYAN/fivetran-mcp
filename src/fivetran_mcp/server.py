@@ -5,7 +5,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from fivetran_mcp.client import FivetranClient
+from fivetran_mcp.fivetran_api import FivetranClient
 
 mcp = FastMCP(name="Fivetran MCP Server")
 
@@ -250,8 +250,8 @@ async def list_groups(limit: int = 100) -> dict[str, Any]:
 
 
 @mcp.tool
-async def run_connection_tests(connection_id: str) -> dict[str, Any]:
-    """Run setup tests for a Fivetran connection to diagnose connectivity and configuration issues.
+async def test_connection(connection_id: str) -> dict[str, Any]:
+    """Test a Fivetran connection to diagnose connectivity and configuration issues.
 
     Executes diagnostic tests to identify root causes when syncs fail, validate
     connection health proactively, and support incident response workflows.
@@ -264,7 +264,7 @@ async def run_connection_tests(connection_id: str) -> dict[str, Any]:
         counts of passed/failed tests, and detailed information for each test
     """
     client = _get_client()
-    result = await client.run_connection_tests(connection_id)
+    result = await client.test_connection(connection_id)
     data = result.get("data", {})
 
     tests = []

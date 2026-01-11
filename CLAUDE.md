@@ -8,8 +8,8 @@ Fivetran MCP Server is a Python-based MCP (Model Context Protocol) server that e
 
 ## Architecture
 
-- **`src/fivetran_mcp/server.py`**: MCP server implementation using FastMCP. Defines all exposed tools (`list_connections`, `get_connection_status`, `trigger_sync`, `trigger_resync`, `resync_tables`, `pause_connection`, `resume_connection`, `list_groups`).
-- **`src/fivetran_mcp/client.py`**: Async HTTP client for the Fivetran REST API using httpx. Handles authentication and API request/response logic.
+- **`src/fivetran_mcp/server.py`**: MCP server implementation using FastMCP. Defines all exposed tools (`list_connections`, `get_connection_status`, `trigger_sync`, `trigger_resync`, `resync_tables`, `pause_connection`, `resume_connection`, `list_groups`, `test_connection`).
+- **`src/fivetran_mcp/fivetran_api.py`**: Async HTTP client for the Fivetran REST API using httpx. Handles authentication and API request/response logic.
 
 ## Development Commands
 
