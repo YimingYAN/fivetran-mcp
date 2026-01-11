@@ -249,6 +249,55 @@ async def list_groups(limit: int = 100) -> dict[str, Any]:
     return {"groups": groups, "count": len(groups)}
 
 
+@mcp.tool
+async def run_connection_tests(connection_id: str) -> dict[str, Any]:
+    """Run setup tests for a Fivetran connection to diagnose connectivity and configuration issues.
+
+    Executes diagnostic tests to identify root causes when syncs fail, validate
+    connection health proactively, and support incident response workflows.
+
+    Args:
+        connection_id: The unique identifier of the connection to test
+
+    Returns:
+        Dictionary containing test results with overall pass/fail status,
+        counts of passed/failed tests, and detailed information for each test
+    """
+    client = _get_client()
+    result = await client.run_connection_tests(connection_id)
+    data = result.get("data", {})
+
+    tests = []
+    passed_count = 0
+    failed_count = 0
+
+    for test in data.get("setup_tests", []):
+        test_status = test.get("status", "UNKNOWN")
+        tests.append(
+            {
+                "title": test.get("title"),
+                "status": test_status,
+                "message": test.get("message"),
+                "details": test.get("details"),
+            }
+        )
+        if test_status == "PASSED":
+            passed_count += 1
+        elif test_status == "FAILED":
+            failed_count += 1
+
+    overall_status = "PASSED" if failed_count == 0 and passed_count > 0 else "FAILED"
+
+    return {
+        "connection_id": connection_id,
+        "overall_status": overall_status,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "total_tests": len(tests),
+        "tests": tests,
+    }
+
+
 def main() -> None:
     """Run the MCP server."""
     mcp.run()
