@@ -11,40 +11,57 @@ An MCP (Model Context Protocol) server for controlling Fivetran syncs. Enables A
 - **Pause/Resume** - Control connection scheduling
 - **List groups** - View all destination groups
 
-## Installation
+## Quick Start
+
+### Step 1: Clone the Repository
 
 ```bash
-# Install from source
 git clone https://github.com/YimingYAN/fivetran-mcp.git
 cd fivetran-mcp
 uv sync
 ```
 
-## Configuration
+### Step 2: Get Fivetran API Credentials
 
-### Getting API Credentials
+1. Log in to [Fivetran Dashboard](https://fivetran.com/dashboard)
+2. Click your **username** (top right corner)
+3. Click **API Key**
+4. Click **Generate API key**
+5. Copy both the **API Key** and **API Secret** (secret shown only once!)
 
-1. Go to Fivetran Dashboard → Click your username → **API Key**
-2. Click **Generate API key**
-3. Save both the API Key and API Secret securely
+See [Fivetran API Getting Started](https://fivetran.com/docs/rest-api/getting-started) for more details.
 
-See [Fivetran API Getting Started](https://fivetran.com/docs/rest-api/getting-started) for details.
+### Step 3: Store Credentials
 
-### Environment Variables
-
-Set the following environment variables (supports both naming conventions):
+Add to your `~/.env.local` (or equivalent):
 
 ```bash
-# Preferred (matches eunice-data convention)
+# Fivetran API
 export FIVETRAN_SYNC_API_KEY="your-api-key"
 export FIVETRAN_SYNC_API_SECRET="your-api-secret"
-
-# Alternative
-export FIVETRAN_API_KEY="your-api-key"
-export FIVETRAN_API_SECRET="your-api-secret"
 ```
 
-## Usage with Claude Code
+Then reload:
+```bash
+source ~/.env.local
+```
+
+### Step 4: Verify Credentials
+
+Test that your credentials work:
+
+```bash
+curl -s -X GET "https://api.fivetran.com/v1/account/info" \
+  -H "Accept: application/json" \
+  -H "Authorization: Basic $(echo -n "$FIVETRAN_SYNC_API_KEY:$FIVETRAN_SYNC_API_SECRET" | base64)"
+```
+
+Expected response:
+```json
+{"code":"Success","data":{"account_id":"...","account_name":"..."}}
+```
+
+### Step 5: Configure Claude Code
 
 Add to your `~/.claude.json`:
 
@@ -64,18 +81,33 @@ Add to your `~/.claude.json`:
 }
 ```
 
+Replace `/path/to/fivetran-mcp` with the actual path (e.g., `~/Playground/fivetran-mcp`).
+
+### Step 6: Restart Claude Code
+
+Restart Claude Code to load the new MCP server. You should now have access to Fivetran tools.
+
 ## Available Tools
 
 | Tool | Description |
 |------|-------------|
 | `list_connections` | List all connections, optionally filtered by group |
 | `get_connection_status` | Get detailed status for a connection |
-| `trigger_sync` | Start a sync for a connection |
+| `trigger_sync` | Start a sync for a connection (optional `force` flag) |
 | `trigger_resync` | Trigger full historical resync |
 | `resync_tables` | Resync specific tables only (e.g., `["schema.table_name"]`) |
 | `pause_connection` | Pause a connection |
 | `resume_connection` | Resume a paused connection |
 | `list_groups` | List all groups/destinations |
+
+## Environment Variables
+
+The server supports two naming conventions:
+
+| Preferred | Alternative |
+|-----------|-------------|
+| `FIVETRAN_SYNC_API_KEY` | `FIVETRAN_API_KEY` |
+| `FIVETRAN_SYNC_API_SECRET` | `FIVETRAN_API_SECRET` |
 
 ## Development
 
