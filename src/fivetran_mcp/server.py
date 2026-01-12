@@ -42,16 +42,41 @@ async def list_connections(
 async def get_connection_status(connection_id: str) -> dict[str, Any]:
     """Get detailed status for a specific Fivetran connection.
 
+    Returns comprehensive information including sync state, tasks with full details,
+    warnings, and scheduling configuration. Use this for investigating connection
+    issues and understanding sync status.
+
     Args:
         connection_id: The unique identifier of the connection
 
     Returns:
-        Dictionary containing connection details, sync status, and any warnings/tasks
+        Dictionary containing connection details, sync status, tasks, and warnings
+        with full details for troubleshooting
     """
     client = _get_client()
     result = await client.get_connection(connection_id)
     data = result.get("data", {})
     status = data.get("status", {})
+
+    # Extract tasks with full details for troubleshooting
+    tasks = [
+        {
+            "code": task.get("code"),
+            "message": task.get("message"),
+            "details": task.get("details"),
+        }
+        for task in status.get("tasks", [])
+    ]
+
+    # Extract warnings with full details
+    warnings = [
+        {
+            "code": warning.get("code"),
+            "message": warning.get("message"),
+            "details": warning.get("details"),
+        }
+        for warning in status.get("warnings", [])
+    ]
 
     return {
         "id": data.get("id"),
@@ -61,17 +86,22 @@ async def get_connection_status(connection_id: str) -> dict[str, Any]:
         "paused": data.get("paused"),
         "sync_frequency": data.get("sync_frequency"),
         "schedule_type": data.get("schedule_type"),
+        "daily_sync_time": data.get("daily_sync_time"),
+        "data_delay_sensitivity": data.get("data_delay_sensitivity"),
         "status": {
             "sync_state": status.get("sync_state"),
             "setup_state": status.get("setup_state"),
             "update_state": status.get("update_state"),
             "is_historical_sync": status.get("is_historical_sync"),
             "rescheduled_for": status.get("rescheduled_for"),
+            "schema_status": status.get("schema_status"),
         },
-        "tasks": status.get("tasks", []),
-        "warnings": status.get("warnings", []),
+        "tasks": tasks,
+        "warnings": warnings,
+        "source_sync_details": data.get("source_sync_details"),
         "succeeded_at": data.get("succeeded_at"),
         "failed_at": data.get("failed_at"),
+        "created_at": data.get("created_at"),
     }
 
 
@@ -251,6 +281,134 @@ async def test_connection(connection_id: str) -> dict[str, Any]:
         "failed_count": failed_count,
         "total_tests": len(tests),
         "tests": tests,
+    }
+
+
+@mcp.tool
+async def get_schema(connection_id: str) -> dict[str, Any]:
+    """Retrieve the complete schema configuration for a Fivetran connection.
+
+    Returns all schemas and tables with their enabled/disabled status,
+    sync modes, and configuration. Useful for understanding what data
+    is being synced and investigating missing tables.
+
+    Args:
+        connection_id: The unique identifier of the connection
+
+    Returns:
+        Dictionary containing schema configuration with all tables and their status
+    """
+    client = _get_client()
+    result = await client.get_schema(connection_id)
+    data = result.get("data", {})
+
+    return {
+        "connection_id": connection_id,
+        "schema_change_handling": data.get("schema_change_handling"),
+        "schemas": data.get("schemas", {}),
+    }
+
+
+@mcp.tool
+async def list_tables(connection_id: str) -> dict[str, Any]:
+    """List all tables in a Fivetran connection with their sync status.
+
+    Provides a flattened view of all tables across all schemas,
+    showing enabled status, sync mode, and configuration.
+    Useful for quickly seeing which tables are being synced.
+
+    Args:
+        connection_id: The unique identifier of the connection
+
+    Returns:
+        Dictionary containing a flat list of all tables with their status
+    """
+    client = _get_client()
+    result = await client.get_schema(connection_id)
+    schemas = result.get("data", {}).get("schemas", {})
+
+    tables = []
+    for schema_name, schema_data in schemas.items():
+        schema_enabled = schema_data.get("enabled", False)
+        for table_name, table_data in schema_data.get("tables", {}).items():
+            tables.append({
+                "schema": schema_name,
+                "table": table_name,
+                "full_name": f"{schema_name}.{table_name}",
+                "enabled": table_data.get("enabled", False),
+                "schema_enabled": schema_enabled,
+                "sync_mode": table_data.get("sync_mode"),
+                "enabled_patch_settings": table_data.get("enabled_patch_settings", {}),
+            })
+
+    return {
+        "connection_id": connection_id,
+        "tables": tables,
+        "count": len(tables),
+        "enabled_count": sum(1 for t in tables if t["enabled"]),
+    }
+
+
+@mcp.tool
+async def get_table_columns(
+    connection_id: str, schema: str, table: str
+) -> dict[str, Any]:
+    """Retrieve column details for a specific table in a Fivetran connection.
+
+    Returns column names, types, and sync configuration. Useful for
+    investigating schema issues or understanding table structure.
+
+    Args:
+        connection_id: The unique identifier of the connection
+        schema: The schema name containing the table
+        table: The table name to get columns for
+
+    Returns:
+        Dictionary containing column details including names, types, and enabled status
+    """
+    client = _get_client()
+    result = await client.get_table_columns(connection_id, schema, table)
+    data = result.get("data", {})
+
+    columns = [
+        {
+            "name": col_name,
+            "enabled": col_data.get("enabled", False),
+            "hashed": col_data.get("hashed", False),
+            "is_primary_key": col_data.get("is_primary_key", False),
+        }
+        for col_name, col_data in data.get("columns", {}).items()
+    ]
+
+    return {
+        "connection_id": connection_id,
+        "schema": schema,
+        "table": table,
+        "columns": columns,
+        "column_count": len(columns),
+    }
+
+
+@mcp.tool
+async def reload_schema(connection_id: str) -> dict[str, Any]:
+    """Reload the schema configuration from the source for a Fivetran connection.
+
+    Fetches the latest schema from the data source and updates the configuration.
+    Useful after source schema changes to detect new tables or columns.
+
+    Args:
+        connection_id: The unique identifier of the connection
+
+    Returns:
+        Dictionary confirming the schema reload was triggered
+    """
+    client = _get_client()
+    await client.reload_schema(connection_id)
+
+    return {
+        "success": True,
+        "connection_id": connection_id,
+        "message": "Schema reload triggered successfully",
     }
 
 

@@ -6,6 +6,15 @@ from typing import Any
 import httpx
 
 
+class FivetranAPIError(Exception):
+    """Fivetran API error with status code and detailed message."""
+
+    def __init__(self, status_code: int, message: str) -> None:
+        self.status_code = status_code
+        self.message = message
+        super().__init__(f"Fivetran API error ({status_code}): {message}")
+
+
 class FivetranClient:
     """Async HTTP client for Fivetran REST API."""
 
@@ -124,6 +133,55 @@ class FivetranClient:
             f"/v1/connections/{connection_id}/test",
         )
 
+    async def get_schema(self, connection_id: str) -> dict[str, Any]:
+        """Retrieve the schema configuration for a connection.
+
+        Returns the complete schema config including all schemas, tables, and their
+        enabled/disabled status.
+
+        Args:
+            connection_id: The connection identifier
+
+        Returns:
+            Dictionary containing schema configuration with tables and their sync status
+        """
+        return await self._request("GET", f"/v1/connections/{connection_id}/schemas")
+
+    async def get_table_columns(
+        self, connection_id: str, schema: str, table: str
+    ) -> dict[str, Any]:
+        """Retrieve column configuration for a specific table.
+
+        Args:
+            connection_id: The connection identifier
+            schema: The schema name
+            table: The table name
+
+        Returns:
+            Dictionary containing column details including names, types, and enabled status
+        """
+        return await self._request(
+            "GET",
+            f"/v1/connections/{connection_id}/schemas/{schema}/tables/{table}/columns",
+        )
+
+    async def reload_schema(self, connection_id: str) -> dict[str, Any]:
+        """Reload the schema configuration from the source.
+
+        Fetches the latest schema from the source and updates the configuration.
+        Useful after source schema changes.
+
+        Args:
+            connection_id: The connection identifier
+
+        Returns:
+            Dictionary containing the updated schema configuration
+        """
+        return await self._request(
+            "POST",
+            f"/v1/connections/{connection_id}/schemas/reload",
+        )
+
     async def _request(
         self,
         method: str,
@@ -131,9 +189,22 @@ class FivetranClient:
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Make an API request and return the JSON response."""
+        """Make an API request and return the JSON response.
+
+        Raises:
+            FivetranAPIError: When the API returns an error response with details
+        """
         response = await self._client.request(method, path, params=params, json=json)
-        response.raise_for_status()
+
+        if not response.is_success:
+            # Extract error message from Fivetran's response body
+            try:
+                error_data = response.json()
+                error_msg = error_data.get("message", str(error_data))
+            except Exception:
+                error_msg = response.text or response.reason_phrase or "Unknown error"
+            raise FivetranAPIError(response.status_code, error_msg)
+
         return response.json()
 
 
