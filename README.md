@@ -12,12 +12,14 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server for c
 ## Features
 
 - **List connections** - View all Fivetran connections with status
-- **Check sync status** - Get detailed status for any connection
+- **Check sync status** - Get detailed status for any connection including tasks and warnings
 - **Trigger syncs** - Start syncs on demand
 - **Historical resync** - Trigger full data resync or resync specific tables
 - **Pause/Resume** - Control connection scheduling
 - **List groups** - View all destination groups
 - **Test connection** - Diagnose connectivity and configuration issues
+- **Schema visibility** - View schemas, tables, and columns for any connection
+- **Reload schema** - Refresh schema configuration from the source
 
 ## Quick Start
 
@@ -87,10 +89,12 @@ Restart Claude Code to load the new MCP server. You should now have access to Fi
 
 ## Available Tools
 
+### Connection Management
+
 | Tool | Description |
 |------|-------------|
 | `list_connections` | List all connections, optionally filtered by group |
-| `get_connection_status` | Get detailed status for a connection |
+| `get_connection_status` | Get detailed status including tasks, warnings, and sync details |
 | `trigger_sync` | Start a sync for a connection (optional `force` flag) |
 | `trigger_resync` | Trigger full historical resync |
 | `resync_tables` | Resync specific tables only (e.g., `["schema.table_name"]`) |
@@ -98,6 +102,28 @@ Restart Claude Code to load the new MCP server. You should now have access to Fi
 | `resume_connection` | Resume a paused connection |
 | `list_groups` | List all groups/destinations |
 | `test_connection` | Run diagnostic tests to identify connectivity/configuration issues |
+
+### Schema & Table Visibility
+
+| Tool | Description |
+|------|-------------|
+| `get_schema` | Get complete schema configuration for a connection |
+| `list_tables` | List all tables with enabled status and sync mode |
+| `get_table_columns` | Get column details for a specific table |
+| `reload_schema` | Refresh schema configuration from the source |
+
+## Limitations
+
+The following capabilities are **not available** via Fivetran's REST API:
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| Sync history/logs | Not available | Fivetran uses [Log Service](https://fivetran.com/docs/logs) which streams to external destinations |
+| Detailed error logs for past syncs | Not available | Only current tasks/warnings are accessible |
+| Row-level sync status | Not available | Not exposed via API |
+| Data quality metrics | Not available | Not exposed via API |
+
+For sync logs and historical data, consider setting up Fivetran's [Log Service](https://fivetran.com/docs/logs) to stream logs to your data warehouse.
 
 ## Environment Variables
 
