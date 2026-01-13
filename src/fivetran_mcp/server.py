@@ -412,6 +412,121 @@ async def reload_schema(connection_id: str) -> dict[str, Any]:
     }
 
 
+@mcp.tool
+async def get_sync_logs(connection_id: str, limit: int = 100) -> dict[str, Any]:
+    """Get sync logs and error details for a Fivetran connection.
+
+    Retrieves sync history including timestamps, error messages for failed syncs,
+    and diagnostic information. Essential for debugging failed syncs, monitoring
+    sync health patterns, and incident response.
+
+    Note: The logs endpoint may not be available for all Fivetran accounts.
+    If logs are not available, comprehensive diagnostic information from the
+    connection details will be returned instead.
+
+    Args:
+        connection_id: The unique identifier of the connection
+        limit: Maximum number of log entries to return (1-1000, default 100)
+
+    Returns:
+        Dictionary containing sync logs with timestamps, error messages,
+        and sync details. If logs endpoint is unavailable, returns current
+        sync status and diagnostic information.
+    """
+    from fivetran_mcp.fivetran_api import FivetranAPIError
+
+    client = _get_client()
+
+    # Try to get logs from the dedicated logs endpoint
+    try:
+        logs_result = await client.get_connector_logs(connection_id, limit=limit)
+        logs_data = logs_result.get("data", {})
+
+        # Process log entries if available
+        log_entries = []
+        for entry in logs_data.get("items", []):
+            log_entries.append({
+                "timestamp": entry.get("timestamp") or entry.get("time"),
+                "event_type": entry.get("event") or entry.get("message_event"),
+                "message": entry.get("message"),
+                "details": entry.get("details"),
+                "sync_id": entry.get("sync_id"),
+                "tables_synced": entry.get("tables_synced"),
+                "rows_synced": entry.get("rows_synced"),
+                "duration_seconds": entry.get("duration_seconds"),
+            })
+
+        return {
+            "connection_id": connection_id,
+            "logs_available": True,
+            "log_entries": log_entries,
+            "count": len(log_entries),
+            "has_more": logs_data.get("next_cursor") is not None,
+        }
+    except FivetranAPIError as e:
+        # Logs endpoint not available - provide diagnostic info from connection details
+        pass
+
+    # Fallback: Get comprehensive diagnostic information from connection details
+    conn_result = await client.get_connection(connection_id)
+    data = conn_result.get("data", {})
+    status = data.get("status", {})
+
+    # Extract tasks (these often contain error details)
+    tasks = [
+        {
+            "code": task.get("code"),
+            "message": task.get("message"),
+            "details": task.get("details"),
+        }
+        for task in status.get("tasks", [])
+    ]
+
+    # Extract warnings
+    warnings = [
+        {
+            "code": warning.get("code"),
+            "message": warning.get("message"),
+            "details": warning.get("details"),
+        }
+        for warning in status.get("warnings", [])
+    ]
+
+    # Determine if the last sync failed and construct diagnostic info
+    failed_at = data.get("failed_at")
+    succeeded_at = data.get("succeeded_at")
+
+    last_sync_status = "unknown"
+    if failed_at and succeeded_at:
+        # Compare timestamps to determine most recent outcome
+        last_sync_status = "failed" if failed_at > succeeded_at else "succeeded"
+    elif failed_at:
+        last_sync_status = "failed"
+    elif succeeded_at:
+        last_sync_status = "succeeded"
+
+    return {
+        "connection_id": connection_id,
+        "logs_available": False,
+        "logs_note": (
+            "Direct sync logs endpoint not available for this account. "
+            "For detailed sync history, check the LOG table in your destination's "
+            "fivetran_metadata schema via the Fivetran Platform Connector."
+        ),
+        "current_sync_state": status.get("sync_state"),
+        "setup_state": status.get("setup_state"),
+        "last_sync_status": last_sync_status,
+        "succeeded_at": succeeded_at,
+        "failed_at": failed_at,
+        "is_historical_sync": status.get("is_historical_sync"),
+        "rescheduled_for": status.get("rescheduled_for"),
+        "tasks": tasks,
+        "warnings": warnings,
+        "task_count": len(tasks),
+        "warning_count": len(warnings),
+    }
+
+
 def main() -> None:
     """Run the MCP server."""
     mcp.run()

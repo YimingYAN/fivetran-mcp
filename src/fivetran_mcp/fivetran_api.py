@@ -182,6 +182,32 @@ class FivetranClient:
             f"/v1/connections/{connection_id}/schemas/reload",
         )
 
+    async def get_connector_logs(
+        self, connection_id: str, limit: int = 100, cursor: str | None = None
+    ) -> dict[str, Any]:
+        """Retrieve sync logs for a connection.
+
+        Fetches sync history including timestamps, error messages, and sync details.
+        Note: This endpoint may not be available for all Fivetran accounts.
+
+        Args:
+            connection_id: The connection identifier
+            limit: Maximum number of log entries to return (default 100)
+            cursor: Pagination cursor for fetching additional results
+
+        Returns:
+            Dictionary containing log entries with sync history and error details
+
+        Raises:
+            FivetranAPIError: If the endpoint is not available or returns an error
+        """
+        params = _pagination_params(limit, cursor)
+        return await self._request(
+            "GET",
+            f"/v1/connectors/{connection_id}/logs",
+            params=params,
+        )
+
     async def _request(
         self,
         method: str,
