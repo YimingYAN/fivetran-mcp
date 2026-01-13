@@ -107,7 +107,8 @@ Restart Claude Code to load the new MCP server. You should now have access to Fi
 
 | Tool | Description |
 |------|-------------|
-| `get_schema` | Get complete schema configuration for a connection |
+| `get_connection_schema` | Get schema info with optional table filter (includes columns when filtering) |
+| `get_schema` | Get complete raw schema configuration for a connection |
 | `list_tables` | List all tables with enabled status and sync mode |
 | `get_table_columns` | Get column details for a specific table |
 | `reload_schema` | Refresh schema configuration from the source |
@@ -118,6 +119,7 @@ The following capabilities are **not available** via Fivetran's REST API:
 
 | Capability | Status | Notes |
 |------------|--------|-------|
+| Column data types | Not available | Query your destination database directly for type info |
 | Sync history/logs | Not available | Fivetran uses [Log Service](https://fivetran.com/docs/logs) which streams to external destinations |
 | Detailed error logs for past syncs | Not available | Only current tasks/warnings are accessible |
 | Row-level sync status | Not available | Not exposed via API |

@@ -14,6 +14,7 @@ from fivetran_mcp import server
 # Using underscore prefix to avoid pytest picking them up as test functions
 _get_connection_status = server.get_connection_status.fn
 _get_schema = server.get_schema.fn
+_get_connection_schema = server.get_connection_schema.fn
 _list_tables = server.list_tables.fn
 _get_table_columns = server.get_table_columns.fn
 _reload_schema = server.reload_schema.fn
@@ -137,6 +138,107 @@ async def test_get_schema_returns_schema_config(mock_env, mock_api):
 
 
 @pytest.mark.asyncio
+async def test_get_connection_schema_overview(mock_env, mock_api):
+    """Test get_connection_schema returns schema overview without table filter."""
+    mock_api.get("/v1/connections/conn_123/schemas").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "code": "Success",
+                "data": {
+                    "schema_change_handling": "ALLOW_COLUMNS",
+                    "schemas": {
+                        "public": {
+                            "enabled": True,
+                            "tables": {
+                                "users": {"enabled": True},
+                                "orders": {"enabled": True},
+                            },
+                        },
+                        "analytics": {
+                            "enabled": False,
+                            "tables": {
+                                "events": {"enabled": False},
+                            },
+                        },
+                    },
+                },
+            },
+        )
+    )
+
+    result = await _get_connection_schema("conn_123")
+
+    assert result["connection_id"] == "conn_123"
+    assert result["schema_change_handling"] == "ALLOW_COLUMNS"
+    assert result["total_schemas"] == 2
+    assert result["total_tables"] == 3
+    assert result["enabled_tables"] == 2
+    assert len(result["schemas"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_connection_schema_with_table_filter(mock_env, mock_api):
+    """Test get_connection_schema returns detailed table info with filter."""
+    mock_api.get("/v1/connections/conn_123/schemas").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "code": "Success",
+                "data": {
+                    "schemas": {
+                        "public": {
+                            "enabled": True,
+                            "tables": {
+                                "users": {"enabled": True, "sync_mode": "SOFT_DELETE"},
+                            },
+                        }
+                    },
+                },
+            },
+        )
+    )
+    mock_api.get("/v1/connections/conn_123/schemas/public/tables/users/columns").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "code": "Success",
+                "data": {
+                    "columns": {
+                        "id": {"enabled": True, "is_primary_key": True},
+                        "email": {"enabled": True, "hashed": True},
+                        "password": {"enabled": False},
+                    }
+                },
+            },
+        )
+    )
+
+    result = await _get_connection_schema("conn_123", table="public.users")
+
+    assert result["connection_id"] == "conn_123"
+    assert result["schema"] == "public"
+    assert result["table"] == "users"
+    assert result["full_name"] == "public.users"
+    assert result["schema_enabled"] is True
+    assert result["table_enabled"] is True
+    assert result["sync_mode"] == "SOFT_DELETE"
+    assert result["column_count"] == 3
+    assert result["enabled_column_count"] == 2
+    assert result["primary_keys"] == ["id"]
+
+
+@pytest.mark.asyncio
+async def test_get_connection_schema_invalid_table_format(mock_env, mock_api):
+    """Test get_connection_schema handles invalid table format."""
+    result = await _get_connection_schema("conn_123", table="invalid_format")
+
+    assert "error" in result
+    assert "invalid_format" in result["error"].lower()
+    assert result["connection_id"] == "conn_123"
+
+
+@pytest.mark.asyncio
 async def test_list_tables_flattens_schema(mock_env, mock_api):
     """Test list_tables returns a flat list of all tables."""
     mock_api.get("/v1/connections/conn_123/schemas").mock(
@@ -193,9 +295,21 @@ async def test_get_table_columns_returns_column_details(mock_env, mock_api):
                 "code": "Success",
                 "data": {
                     "columns": {
-                        "id": {"enabled": True, "hashed": False, "is_primary_key": True},
+                        "id": {
+                            "enabled": True,
+                            "hashed": False,
+                            "is_primary_key": True,
+                            "name_in_destination": "user_id",
+                        },
                         "email": {"enabled": True, "hashed": True},
-                        "password": {"enabled": False, "hashed": True},
+                        "password": {
+                            "enabled": False,
+                            "hashed": True,
+                            "enabled_patch_settings": {
+                                "allowed": False,
+                                "reason_code": "SYSTEM_COLUMN",
+                            },
+                        },
                     }
                 },
             },
@@ -208,14 +322,20 @@ async def test_get_table_columns_returns_column_details(mock_env, mock_api):
     assert result["schema"] == "public"
     assert result["table"] == "users"
     assert result["column_count"] == 3
+    assert result["enabled_count"] == 2
+    assert result["primary_keys"] == ["id"]
 
     # Check column details
     id_col = next(c for c in result["columns"] if c["name"] == "id")
     assert id_col["is_primary_key"] is True
     assert id_col["hashed"] is False
+    assert id_col["name_in_destination"] == "user_id"
 
     email_col = next(c for c in result["columns"] if c["name"] == "email")
     assert email_col["hashed"] is True
+
+    password_col = next(c for c in result["columns"] if c["name"] == "password")
+    assert password_col["enabled_patch_settings"]["reason_code"] == "SYSTEM_COLUMN"
 
 
 @pytest.mark.asyncio

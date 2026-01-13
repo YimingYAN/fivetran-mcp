@@ -310,6 +310,119 @@ async def get_schema(connection_id: str) -> dict[str, Any]:
 
 
 @mcp.tool
+async def get_connection_schema(
+    connection_id: str, table: str | None = None
+) -> dict[str, Any]:
+    """Retrieve schema information for a Fivetran connection with optional table filter.
+
+    When called without a table parameter, returns all schemas and tables.
+    When a table is specified (format: "schema.table_name"), returns detailed
+    information for that specific table including all column metadata.
+
+    This is useful for:
+    - Debugging dbt model failures when columns are missing
+    - Detecting schema changes
+    - Building new models with accurate column metadata
+    - Identifying which columns are actively synced vs excluded
+
+    Args:
+        connection_id: The unique identifier of the connection
+        table: Optional table name in "schema.table_name" format to get detailed info
+
+    Returns:
+        Dictionary containing schema information. If table is specified, includes
+        full column details for that table.
+    """
+    client = _get_client()
+
+    if table:
+        # Parse schema.table format
+        parts = table.split(".", 1)
+        if len(parts) != 2:
+            return {
+                "error": f"Invalid table format: '{table}'. Expected 'schema.table_name'",
+                "connection_id": connection_id,
+            }
+        schema_name, table_name = parts
+
+        # Get schema config and column details in parallel
+        schema_result = await client.get_schema(connection_id)
+        columns_result = await client.get_table_columns(
+            connection_id, schema_name, table_name
+        )
+
+        schemas = schema_result.get("data", {}).get("schemas", {})
+        schema_data = schemas.get(schema_name, {})
+        table_data = schema_data.get("tables", {}).get(table_name, {})
+
+        columns = [
+            {
+                "name": col_name,
+                "name_in_destination": col_data.get("name_in_destination"),
+                "enabled": col_data.get("enabled", False),
+                "hashed": col_data.get("hashed", False),
+                "is_primary_key": col_data.get("is_primary_key", False),
+                "enabled_patch_settings": col_data.get("enabled_patch_settings"),
+            }
+            for col_name, col_data in columns_result.get("data", {})
+            .get("columns", {})
+            .items()
+        ]
+
+        enabled_columns = sum(1 for c in columns if c["enabled"])
+        primary_keys = [c["name"] for c in columns if c["is_primary_key"]]
+
+        return {
+            "connection_id": connection_id,
+            "schema": schema_name,
+            "table": table_name,
+            "full_name": table,
+            "schema_enabled": schema_data.get("enabled", False),
+            "table_enabled": table_data.get("enabled", False),
+            "sync_mode": table_data.get("sync_mode"),
+            "columns": columns,
+            "column_count": len(columns),
+            "enabled_column_count": enabled_columns,
+            "primary_keys": primary_keys,
+        }
+
+    # No table specified - return full schema overview
+    result = await client.get_schema(connection_id)
+    data = result.get("data", {})
+    schemas = data.get("schemas", {})
+
+    # Build summary with table counts
+    schema_summary = []
+    total_tables = 0
+    enabled_tables = 0
+
+    for schema_name, schema_data in schemas.items():
+        tables = schema_data.get("tables", {})
+        table_count = len(tables)
+        enabled_count = sum(
+            1 for t in tables.values() if t.get("enabled", False)
+        )
+        total_tables += table_count
+        enabled_tables += enabled_count
+
+        schema_summary.append({
+            "schema": schema_name,
+            "enabled": schema_data.get("enabled", False),
+            "table_count": table_count,
+            "enabled_table_count": enabled_count,
+        })
+
+    return {
+        "connection_id": connection_id,
+        "schema_change_handling": data.get("schema_change_handling"),
+        "total_schemas": len(schemas),
+        "total_tables": total_tables,
+        "enabled_tables": enabled_tables,
+        "schemas": schema_summary,
+    }
+
+
+@mcp.tool
 async def list_tables(connection_id: str) -> dict[str, Any]:
     """List all tables in a Fivetran connection with their sync status.
 
@@ -355,8 +468,11 @@ async def get_table_columns(
 ) -> dict[str, Any]:
     """Retrieve column details for a specific table in a Fivetran connection.
 
-    Returns column names, types, and sync configuration. Useful for
+    Returns column names, sync configuration, and metadata. Useful for
     investigating schema issues or understanding table structure.
+
+    Note: Column data types are not available via the Fivetran API.
+    Data types can be queried directly from your destination database.
 
     Args:
         connection_id: The unique identifier of the connection
@@ -364,7 +480,8 @@ async def get_table_columns(
         table: The table name to get columns for
 
     Returns:
-        Dictionary containing column details including names, types, and enabled status
+        Dictionary containing column details including names, enabled status,
+        primary key info, and sync settings
     """
     client = _get_client()
     result = await client.get_table_columns(connection_id, schema, table)
@@ -373,12 +490,17 @@ async def get_table_columns(
     columns = [
         {
             "name": col_name,
+            "name_in_destination": col_data.get("name_in_destination"),
             "enabled": col_data.get("enabled", False),
             "hashed": col_data.get("hashed", False),
             "is_primary_key": col_data.get("is_primary_key", False),
+            "enabled_patch_settings": col_data.get("enabled_patch_settings"),
         }
         for col_name, col_data in data.get("columns", {}).items()
     ]
+
+    enabled_count = sum(1 for c in columns if c["enabled"])
+    primary_keys = [c["name"] for c in columns if c["is_primary_key"]]
 
     return {
         "connection_id": connection_id,
@@ -386,6 +508,8 @@ async def get_table_columns(
         "table": table,
         "columns": columns,
         "column_count": len(columns),
+        "enabled_count": enabled_count,
+        "primary_keys": primary_keys,
     }
 
 
