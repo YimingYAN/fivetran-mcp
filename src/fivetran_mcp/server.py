@@ -345,7 +345,7 @@ async def get_connection_schema(
             }
         schema_name, table_name = parts
 
-        # Get schema config and column details in parallel
+        # Get schema config and column details
         schema_result = await client.get_schema(connection_id)
         columns_result = await client.get_table_columns(
             connection_id, schema_name, table_name
