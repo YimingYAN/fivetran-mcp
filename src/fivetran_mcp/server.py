@@ -536,6 +536,123 @@ async def reload_schema(connection_id: str) -> dict[str, Any]:
     }
 
 
+@mcp.tool
+async def get_table_status(
+    connection_id: str,
+    schema_filter: str | None = None,
+    enabled_only: bool = False,
+) -> dict[str, Any]:
+    """Get per-table sync status for a Fivetran connection.
+
+    Returns detailed status for each table including enabled/disabled state,
+    sync configuration, and metadata from the most recent successful sync.
+    Useful for debugging large connectors with many tables, identifying
+    stale tables, and monitoring data freshness.
+
+    For connectors with many tables (e.g., Airtable with 20+ bases, or Postgres
+    with 50+ tables), this provides visibility into which specific tables are
+    configured and their sync settings.
+
+    Note: Table metadata (like destination names) is only available after
+    at least one successful sync has completed.
+
+    Args:
+        connection_id: The unique identifier of the connection
+        schema_filter: Optional schema name to filter tables (e.g., "public")
+        enabled_only: If True, only return tables that are enabled for sync
+
+    Returns:
+        Dictionary containing per-table status including:
+        - Table name and schema
+        - Enabled/disabled state
+        - Sync mode configuration
+        - Destination name (if available from metadata)
+    """
+    client = _get_client()
+
+    # Fetch schema config and table metadata in parallel
+    schema_result = await client.get_schema(connection_id)
+    schemas_data = schema_result.get("data", {}).get("schemas", {})
+
+    # Try to get table metadata (may fail if no successful sync yet)
+    metadata_map: dict[str, dict[str, Any]] = {}
+    try:
+        metadata_result = await client.get_table_metadata(connection_id)
+        for table in metadata_result.get("data", {}).get("items", []):
+            # Key by schema.table for lookup
+            key = f"{table.get('schema')}.{table.get('table')}"
+            metadata_map[key] = table
+    except Exception:
+        # Metadata not available yet (no successful sync)
+        pass
+
+    # Build table status list
+    tables = []
+    for schema_name, schema_data in schemas_data.items():
+        # Apply schema filter if specified
+        if schema_filter and schema_name != schema_filter:
+            continue
+
+        schema_enabled = schema_data.get("enabled", False)
+
+        for table_name, table_data in schema_data.get("tables", {}).items():
+            table_enabled = table_data.get("enabled", False)
+
+            # Apply enabled filter if specified
+            if enabled_only and not table_enabled:
+                continue
+
+            full_name = f"{schema_name}.{table_name}"
+            metadata = metadata_map.get(full_name, {})
+
+            # Determine effective sync state
+            if not schema_enabled:
+                sync_state = "schema_disabled"
+            elif not table_enabled:
+                sync_state = "disabled"
+            else:
+                sync_state = "enabled"
+
+            table_status = {
+                "schema": schema_name,
+                "table": table_name,
+                "full_name": full_name,
+                "sync_state": sync_state,
+                "enabled": table_enabled,
+                "schema_enabled": schema_enabled,
+                "sync_mode": table_data.get("sync_mode"),
+                "enabled_patch_settings": table_data.get("enabled_patch_settings", {}),
+            }
+
+            # Add metadata if available
+            if metadata:
+                table_status["name_in_destination"] = metadata.get("name_in_destination")
+                table_status["schema_in_destination"] = metadata.get("parent_id")
+
+            tables.append(table_status)
+
+    # Calculate summary statistics
+    enabled_count = sum(1 for t in tables if t["sync_state"] == "enabled")
+    disabled_count = sum(1 for t in tables if t["sync_state"] == "disabled")
+    schema_disabled_count = sum(1 for t in tables if t["sync_state"] == "schema_disabled")
+
+    return {
+        "connection_id": connection_id,
+        "tables": tables,
+        "summary": {
+            "total_tables": len(tables),
+            "enabled": enabled_count,
+            "disabled": disabled_count,
+            "schema_disabled": schema_disabled_count,
+        },
+        "metadata_available": len(metadata_map) > 0,
+        "filters_applied": {
+            "schema_filter": schema_filter,
+            "enabled_only": enabled_only,
+        },
+    }
+
+
 def main() -> None:
     """Run the MCP server."""
     mcp.run()
