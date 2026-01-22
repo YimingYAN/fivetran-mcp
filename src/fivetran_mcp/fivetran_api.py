@@ -182,6 +182,29 @@ class FivetranClient:
             f"/v1/connections/{connection_id}/schemas/reload",
         )
 
+    async def get_table_metadata(
+        self, connection_id: str, limit: int = 1000, cursor: str | None = None
+    ) -> dict[str, Any]:
+        """Retrieve table metadata for a connection from Fivetran's Metadata API.
+
+        Returns metadata for tables that have been successfully synced, including
+        source and destination names. Note: Metadata is only available after
+        a successful sync.
+
+        Args:
+            connection_id: The connection identifier
+            limit: Maximum number of tables to return (1-1000, default 1000)
+            cursor: Optional pagination cursor
+
+        Returns:
+            Dictionary containing table metadata with source/destination mappings
+        """
+        return await self._request(
+            "GET",
+            f"/v1/metadata/connectors/{connection_id}/tables",
+            params=_pagination_params(limit, cursor),
+        )
+
     async def _request(
         self,
         method: str,
