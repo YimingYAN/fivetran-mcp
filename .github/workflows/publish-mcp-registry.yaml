@@ -1,0 +1,42 @@
+name: Publish to MCP Registry
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for GitHub OIDC authentication
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from release tag
+        id: version
+        run: |
+          # Remove 'v' prefix if present (e.g., v0.3.1 -> 0.3.1)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update server.json version
+        run: |
+          # Update version in server.json to match release tag
+          jq --arg version "${{ steps.version.outputs.version }}" \
+            '.version = $version | .packages[0].version = $version' \
+            server.json > server.json.tmp && mv server.json.tmp server.json
+          cat server.json
+
+      - name: Download mcp-publisher
+        run: |
+          curl -L https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz | tar xz
+          chmod +x mcp-publisher
+
+      - name: Login to MCP Registry (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
