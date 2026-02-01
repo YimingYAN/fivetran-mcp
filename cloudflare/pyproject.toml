@@ -1,0 +1,8 @@
+[project]
+name = "fivetran-mcp-cloudflare"
+version = "0.3.0"
+description = "Cloudflare Workers deployment for Fivetran MCP Server"
+requires-python = ">=3.12"
+
+[tool.uv]
+dev-dependencies = ["workers-py"]

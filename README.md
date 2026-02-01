@@ -1,5 +1,7 @@
 # Fivetran MCP Server
 
+<!-- mcp-name: io.github.YimingYAN/fivetran-mcp -->
+
 [![PyPI version](https://img.shields.io/pypi/v/fivetran-mcp.svg)](https://pypi.org/project/fivetran-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -149,6 +151,23 @@ uv sync
 # Run the server locally
 uv run fivetran-mcp
 ```
+
+## Cloud Deployment
+
+### Cloudflare Workers (Free)
+
+Deploy to Cloudflare Workers for a hosted MCP endpoint:
+
+```bash
+cd cloudflare
+uv tool install workers-py
+npx wrangler login
+npx wrangler secret put FIVETRAN_API_KEY
+npx wrangler secret put FIVETRAN_API_SECRET
+uv run pywrangler deploy
+```
+
+See [cloudflare/README.md](cloudflare/README.md) for detailed instructions.
 
 ## License
 
