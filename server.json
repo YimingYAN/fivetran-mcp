@@ -1,0 +1,29 @@
+{
+  "$schema": "https://registry.modelcontextprotocol.io/schemas/server.json",
+  "name": "io.github.yimingyan/fivetran-mcp",
+  "description": "MCP server for Fivetran API - manage syncs, check status, and control data pipelines",
+  "version": "0.3.0",
+  "repository": "https://github.com/YimingYAN/fivetran-mcp",
+  "homepage": "https://github.com/YimingYAN/fivetran-mcp",
+  "license": "MIT",
+  "keywords": ["fivetran", "data-engineering", "etl", "data-pipelines", "sync"],
+  "packages": [
+    {
+      "type": "pypi",
+      "name": "fivetran-mcp",
+      "version": "0.3.0",
+      "runtime": "python",
+      "command": ["uvx", "fivetran-mcp"],
+      "env": {
+        "FIVETRAN_API_KEY": {
+          "description": "Fivetran API key",
+          "required": true
+        },
+        "FIVETRAN_API_SECRET": {
+          "description": "Fivetran API secret",
+          "required": true
+        }
+      }
+    }
+  ]
+}

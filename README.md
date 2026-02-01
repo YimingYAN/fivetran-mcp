@@ -150,6 +150,23 @@ uv sync
 uv run fivetran-mcp
 ```
 
+## Cloud Deployment
+
+### Cloudflare Workers (Free)
+
+Deploy to Cloudflare Workers for a hosted MCP endpoint:
+
+```bash
+cd cloudflare
+uv tool install workers-py
+npx wrangler login
+npx wrangler secret put FIVETRAN_API_KEY
+npx wrangler secret put FIVETRAN_API_SECRET
+uv run pywrangler deploy
+```
+
+See [cloudflare/README.md](cloudflare/README.md) for detailed instructions.
+
 ## License
 
 [MIT](LICENSE)

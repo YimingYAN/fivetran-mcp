@@ -1,0 +1,28 @@
+# Smithery MCP Server Configuration
+# https://smithery.ai/docs/build/project-config/smithery.yaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - fivetranApiKey
+      - fivetranApiSecret
+    properties:
+      fivetranApiKey:
+        type: string
+        title: "Fivetran API Key"
+        description: "Your Fivetran API key (get from Fivetran Dashboard > API Key)"
+      fivetranApiSecret:
+        type: string
+        title: "Fivetran API Secret"
+        description: "Your Fivetran API secret"
+  commandFunction: |-
+    config => ({
+      command: 'uvx',
+      args: ['fivetran-mcp'],
+      env: {
+        FIVETRAN_API_KEY: config.fivetranApiKey,
+        FIVETRAN_API_SECRET: config.fivetranApiSecret
+      }
+    })

@@ -1,0 +1,26 @@
+# Cloudflare Workers Configuration for Fivetran MCP Server
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "fivetran-mcp"
+main = "src/worker.py"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["python_workers"]
+
+# Secrets (set via: wrangler secret put FIVETRAN_API_KEY)
+# - FIVETRAN_API_KEY
+# - FIVETRAN_API_SECRET
+
+[vars]
+# Non-sensitive configuration
+MCP_SERVER_NAME = "Fivetran MCP Server"
+
+# Optional: Custom domain routing
+# [routes]
+# routes = [
+#   { pattern = "fivetran-mcp.yourdomain.com/*", zone_name = "yourdomain.com" }
+# ]
+
+# Development configuration
+[dev]
+port = 8788
+local_protocol = "http"
