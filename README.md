@@ -1,5 +1,7 @@
 # Fivetran MCP Server
 
+<!-- mcp-name: io.github.YimingYAN/fivetran-mcp -->
+
 [![PyPI version](https://img.shields.io/pypi/v/fivetran-mcp.svg)](https://pypi.org/project/fivetran-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
