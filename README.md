@@ -152,6 +152,25 @@ uv sync
 uv run fivetran-mcp
 ```
 
+## Releasing
+
+To publish a new version:
+
+```bash
+# 1. Update version in pyproject.toml
+# 2. Build and publish to PyPI
+uv build && uv publish
+
+# 3. Create GitHub release (triggers MCP Registry publish)
+gh release create v0.x.x --generate-notes
+```
+
+**Automated on release:**
+- MCP Registry is updated automatically via GitHub Action
+- No manual `mcp-publisher` commands needed
+
+**Registry:** [io.github.YimingYAN/fivetran-mcp](https://registry.modelcontextprotocol.io/)
+
 ## Cloud Deployment
 
 ### Cloudflare Workers (Free)
