@@ -171,11 +171,11 @@ gh release create v0.x.x --generate-notes
 
 **Registry:** [io.github.YimingYAN/fivetran-mcp](https://registry.modelcontextprotocol.io/)
 
-## Cloud Deployment
+## Cloud Deployment (Self-Hosted)
 
 ### Cloudflare Workers (Free)
 
-Deploy to Cloudflare Workers for a hosted MCP endpoint:
+Deploy your own instance to Cloudflare Workers. Useful for teams wanting a shared, always-on MCP endpoint with their Fivetran credentials:
 
 ```bash
 cd cloudflare

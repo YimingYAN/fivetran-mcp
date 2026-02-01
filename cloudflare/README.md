@@ -1,6 +1,11 @@
-# Cloudflare Workers Deployment
+# Cloudflare Workers Deployment (Self-Hosted)
 
-Deploy the Fivetran MCP Server on Cloudflare Workers (free tier).
+Deploy your own instance of the Fivetran MCP Server on Cloudflare Workers (free tier).
+
+> **Important:** This is for **self-hosting only**. You deploy to your own Cloudflare account with your own Fivetran API credentials. This is useful for:
+> - Running a hosted MCP endpoint for your team
+> - Accessing Fivetran from MCP clients that don't support local stdio transport
+> - Organizations wanting a shared, always-on MCP server
 
 > **Note:** Cloudflare Python Workers are in beta. Some features may change.
 
